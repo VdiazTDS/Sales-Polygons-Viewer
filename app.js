@@ -1,9 +1,9 @@
-// ================= SUPABASE CONFIG =================
-const SUPABASE_URL = "https://lffazhbwvorwxineklsy.supabase.co";
-const SUPABASE_KEY = "sb_publishable_Lfh2zlIiTSMB0U-Fe5o6Jg_mJ1qkznh";
-const BUCKET = "excel-files";
-
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// ======== GITHUB CONFIG ========
+const GITHUB_USER = "VdiazTDS";
+const GITHUB_REPO = "VdiazTDS.github.io";
+const GITHUB_FOLDER = "data";
+const GITHUB_BRANCH = "main";
+const GITHUB_TOKEN = "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";
 
 
 // ================= MAP =================
@@ -95,6 +95,27 @@ function buildDayCheckboxes() {
 }
 buildDayCheckboxes();
 
+// ================= SELECT ALL / NONE =================
+function setCheckboxGroup(containerId, checked) {
+  const boxes = document.querySelectorAll(`#${containerId} input[type="checkbox"]`);
+  boxes.forEach(b => (b.checked = checked));
+  applyFilters();
+}
+
+// Routes buttons
+document.getElementById("routesAll").onclick = () =>
+  setCheckboxGroup("routeCheckboxes", true);
+
+document.getElementById("routesNone").onclick = () =>
+  setCheckboxGroup("routeCheckboxes", false);
+
+// Days buttons
+document.getElementById("daysAll").onclick = () =>
+  setCheckboxGroup("dayCheckboxes", true);
+
+document.getElementById("daysNone").onclick = () =>
+  setCheckboxGroup("dayCheckboxes", false);
+
 
 // ================= FILTER =================
 function applyFilters() {
@@ -167,22 +188,42 @@ function processExcelBuffer(buffer) {
 }
 
 
-// ================= SUPABASE LIST FILES =================
-async function listFiles() {
-  const { data, error } = await supabase.storage.from(BUCKET).list();
-  if (error) return console.error(error);
+// ================= GITHUB REQUEST =================
+async function githubRequest(path, options = {}) {
+  const res = await fetch(`https://api.github.com${path}`, {
+    headers: {
+      Authorization: `token ${GITHUB_TOKEN}`,
+      "Content-Type": "application/json"
+    },
+    ...options
+  });
+
+  return res;
+}
+
+
+// ================= LIST FILES =================
+async function githubListFiles() {
+  const res = await githubRequest(
+    `/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${GITHUB_FOLDER}?ref=${GITHUB_BRANCH}`
+  );
+
+  if (!res.ok) return;
+
+  const files = await res.json();
 
   const ul = document.getElementById("savedFiles");
+  if (!ul) return;
+
   ul.innerHTML = "";
 
-  data.forEach(file => {
+  files.forEach(f => {
     const li = document.createElement("li");
 
     const openBtn = document.createElement("button");
     openBtn.textContent = "Open";
     openBtn.onclick = async () => {
-      const { data } = supabase.storage.from(BUCKET).getPublicUrl(file.name);
-      const r = await fetch(data.publicUrl);
+      const r = await fetch(f.download_url);
       const buffer = await r.arrayBuffer();
       processExcelBuffer(buffer);
     };
@@ -190,33 +231,66 @@ async function listFiles() {
     const delBtn = document.createElement("button");
     delBtn.textContent = "Delete";
     delBtn.onclick = async () => {
-      await supabase.storage.from(BUCKET).remove([file.name]);
-      listFiles();
+      await githubRequest(
+        `/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${f.path}`,
+        {
+          method: "DELETE",
+          body: JSON.stringify({
+            message: `Delete ${f.name}`,
+            sha: f.sha,
+            branch: GITHUB_BRANCH
+          })
+        }
+      );
+      githubListFiles();
     };
 
-    li.append(openBtn, delBtn, document.createTextNode(" " + file.name));
+    li.append(openBtn, delBtn, document.createTextNode(" " + f.name));
     ul.appendChild(li);
   });
 }
 
 
-// ================= SUPABASE UPLOAD =================
-async function uploadFile(file) {
+// ================= UPLOAD FILE =================
+async function githubUploadFile(file) {
   if (!file) return;
 
-  const { error } = await supabase.storage.from(BUCKET).upload(file.name, file, {
-    upsert: true
+  const buffer = await file.arrayBuffer();
+
+  const content = btoa(
+    new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
+  );
+
+  const path = `/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${GITHUB_FOLDER}/${file.name}`;
+
+  // check if file exists
+  const existingRes = await githubRequest(`${path}?ref=${GITHUB_BRANCH}`);
+  let sha = null;
+
+  if (existingRes.status === 200) {
+    const existingJson = await existingRes.json();
+    sha = existingJson.sha;
+  }
+
+  const uploadRes = await githubRequest(path, {
+    method: "PUT",
+    body: JSON.stringify({
+      message: `Upload ${file.name}`,
+      content,
+      branch: GITHUB_BRANCH,
+      ...(sha && { sha })
+    })
   });
 
-  if (error) {
-    console.error(error);
-    alert("Upload failed");
+  if (!uploadRes.ok) {
+    const err = await uploadRes.json();
+    console.error("GitHub upload error:", err);
+    alert("Upload failed. Check console.");
     return;
   }
 
-  const buffer = await file.arrayBuffer();
+  await githubListFiles();
   processExcelBuffer(buffer);
-  listFiles();
 }
 
 
@@ -228,15 +302,16 @@ fileInput.accept = ".xlsx,.xls";
 
 if (dropZone) {
   dropZone.onclick = () => fileInput.click();
+
   dropZone.ondragover = e => e.preventDefault();
+
   dropZone.ondrop = e => {
     e.preventDefault();
-    uploadFile(e.dataTransfer.files[0]);
+    githubUploadFile(e.dataTransfer.files[0]);
   };
 }
 
-fileInput.onchange = e => uploadFile(e.target.files[0]);
-
+fileInput.onchange = e => githubUploadFile(e.target.files[0]);
 
 // ================= MOBILE MENU =================
 const mobileBtn = document.getElementById("mobileMenuBtn");
@@ -245,14 +320,18 @@ const sidebar = document.querySelector(".sidebar");
 if (mobileBtn && sidebar) {
   mobileBtn.onclick = () => {
     const isOpen = sidebar.classList.toggle("open");
+
+    // visual active state
     mobileBtn.classList.toggle("active", isOpen);
+
+    // change icon for clarity
     mobileBtn.textContent = isOpen ? "✕" : "☰";
+
     setTimeout(() => map.invalidateSize(), 200);
   };
 }
 
-
-// ================= SIDEBAR TOGGLE =================
+// ================= SIDEBAR TOGGLE (CLEAN) =================
 const toggleBtn = document.getElementById("toggleSidebarBtn");
 const appContainer = document.querySelector(".app-container");
 const sidebarEl = document.querySelector(".sidebar");
@@ -264,8 +343,10 @@ if (toggleBtn && appContainer && sidebarEl) {
     toggleBtn.textContent = collapsed ? "▶" : "◀";
   }
 
+  // Initial arrow direction
   updateDesktopArrow();
 
+  // Prevent Leaflet from stealing tap
   toggleBtn.addEventListener("touchstart", e => e.stopPropagation());
 
   toggleBtn.onclick = () => {
@@ -283,5 +364,17 @@ if (toggleBtn && appContainer && sidebarEl) {
 }
 
 
+
+
 // ================= INIT =================
-listFiles();
+githubListFiles();
+
+
+
+
+
+
+
+
+
+
