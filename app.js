@@ -1,4 +1,4 @@
-```js
+
 // ================= SUPABASE CONFIG =================
 const SUPABASE_URL = "https://lffazhbwvorwxineklsy.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Lfh2zlIiTSMB0U-Fe5o6Jg_mJ1qkznh";
