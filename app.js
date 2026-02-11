@@ -1,10 +1,10 @@
+```js
 // ================= SUPABASE CONFIG =================
-const SUPABASE_URL = "https://lffazhbwvorwxineklsy.sb.co";
+const SUPABASE_URL = "https://lffazhbwvorwxineklsy.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Lfh2zlIiTSMB0U-Fe5o6Jg_mJ1qkznh";
 const BUCKET = "excel-files";
 
-const sb = window.sb.createClient(SUPABASE_URL, SUPABASE_KEY);
-
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 
 // ================= MAP =================
@@ -99,10 +99,10 @@ function setCheckboxGroup(containerId, checked) {
   applyFilters();
 }
 
-routesAll.onclick  = () => setCheckboxGroup("routeCheckboxes", true);
-routesNone.onclick = () => setCheckboxGroup("routeCheckboxes", false);
-daysAll.onclick    = () => setCheckboxGroup("dayCheckboxes", true);
-daysNone.onclick   = () => setCheckboxGroup("dayCheckboxes", false);
+document.getElementById("routesAll").onclick  = () => setCheckboxGroup("routeCheckboxes", true);
+document.getElementById("routesNone").onclick = () => setCheckboxGroup("routeCheckboxes", false);
+document.getElementById("daysAll").onclick    = () => setCheckboxGroup("dayCheckboxes", true);
+document.getElementById("daysNone").onclick   = () => setCheckboxGroup("dayCheckboxes", false);
 
 
 // ================= FILTER =================
@@ -237,6 +237,10 @@ fileInput.onchange = e => uploadFile(e.target.files[0]);
 
 
 // ================= SIDEBAR / MOBILE =================
+const mobileMenuBtn = document.getElementById("mobileMenuBtn");
+const toggleSidebarBtn = document.getElementById("toggleSidebarBtn");
+const sidebar = document.querySelector(".sidebar");
+
 mobileMenuBtn.onclick = () => {
   const isOpen = sidebar.classList.toggle("open");
   mobileMenuBtn.textContent = isOpen ? "✕" : "☰";
@@ -257,3 +261,4 @@ toggleSidebarBtn.onclick = () => {
 
 // ================= INIT =================
 listFiles();
+```
