@@ -1,9 +1,10 @@
 // ================= SUPABASE CONFIG =================
-const SUPABASE_URL = "https://lffazhbwvorwxineklsy.supabase.co";
+const SUPABASE_URL = "https://lffazhbwvorwxineklsy.sb.co";
 const SUPABASE_KEY = "sb_publishable_Lfh2zlIiTSMB0U-Fe5o6Jg_mJ1qkznh";
 const BUCKET = "excel-files";
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = window.sb.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 
 
 // ================= MAP =================
@@ -178,7 +179,7 @@ function processExcelBuffer(buffer) {
 
 // ================= SUPABASE FILE LIST =================
 async function listFiles() {
-  const { data, error } = await supabase.storage.from(BUCKET).list();
+  const { data, error } = await sb.storage.from(BUCKET).list();
   if (error) return console.error(error);
 
   const ul = document.getElementById("savedFiles");
@@ -190,7 +191,7 @@ async function listFiles() {
     const openBtn = document.createElement("button");
     openBtn.textContent = "Open";
     openBtn.onclick = async () => {
-      const { data } = supabase.storage.from(BUCKET).getPublicUrl(file.name);
+      const { data } = sb.storage.from(BUCKET).getPublicUrl(file.name);
       const r = await fetch(data.publicUrl);
       processExcelBuffer(await r.arrayBuffer());
     };
@@ -198,7 +199,7 @@ async function listFiles() {
     const delBtn = document.createElement("button");
     delBtn.textContent = "Delete";
     delBtn.onclick = async () => {
-      await supabase.storage.from(BUCKET).remove([file.name]);
+      await sb.storage.from(BUCKET).remove([file.name]);
       listFiles();
     };
 
@@ -212,7 +213,7 @@ async function listFiles() {
 async function uploadFile(file) {
   if (!file) return;
 
-  await supabase.storage.from(BUCKET).upload(file.name, file, { upsert: true });
+  await sb.storage.from(BUCKET).upload(file.name, file, { upsert: true });
 
   processExcelBuffer(await file.arrayBuffer());
   listFiles();
