@@ -137,4 +137,17 @@ fileInput.onchange = e => uploadFile(e.target.files[0]);
 // INITIAL LOAD
 // Pulls existing GeoJSON files from Supabase on page open
 // =============================================================
+// =============================================================
+// RESET MAP VIEW BUTTON
+// Returns map to world view
+// =============================================================
+const resetMapBtn = document.getElementById("resetMapBtn");
+
+if (resetMapBtn) {
+  resetMapBtn.onclick = () => {
+    map.setView([0, 0], 2);
+  };
+}
+
+
 listFiles();
