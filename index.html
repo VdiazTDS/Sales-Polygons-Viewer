@@ -45,7 +45,7 @@
 
       <!-- Collapsible Help Panel -->
       <div class="filter-group help-panel">
-        <button id="helpToggle" class="help-toggle">❓ Help & Instructions</button>
+        <button id="helpToggle" class="help-toggle">❓ Click for Help & Instructions</button>
 
         <div id="helpContent" class="help-content">
   <ul>
@@ -105,10 +105,9 @@
     if (helpToggle && helpContent) {
       helpToggle.addEventListener("click", () => {
         const isOpen = helpContent.classList.toggle("open");
-        helpToggle.textContent = isOpen ? "▼ Help & Instructions" : "▶ Help & Instructions";
+        helpToggle.textContent = isOpen ? "▼ Click for Help & Instructions" : "▶ Click for Help & Instructions";
       });
     }
   </script>
 </body>
 </html>
-
