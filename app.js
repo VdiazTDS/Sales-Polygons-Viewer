@@ -1,13 +1,22 @@
-
-// ================= SUPABASE CONFIG =================
+// =============================================================
+// SUPABASE CONFIGURATION
+// Handles cloud storage for Excel and GeoJSON files
+// =============================================================
 const SUPABASE_URL = "https://lffazhbwvorwxineklsy.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Lfh2zlIiTSMB0U-Fe5o6Jg_mJ1qkznh";
-const BUCKET = "excel-files";
 
+// Storage buckets
+const EXCEL_BUCKET = "excel-files";
+const GEOJSON_BUCKET = "geojson-files"; // New bucket for GeoJSON layers
+
+// Create Supabase client
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 
-// ================= MAP =================
+// =============================================================
+// MAP INITIALIZATION
+// Sets up Leaflet map and base layers
+// =============================================================
 const map = L.map("map").setView([0, 0], 2);
 
 const baseMaps = {
@@ -17,19 +26,30 @@ const baseMaps = {
   )
 };
 
+// Default basemap
 baseMaps.streets.addTo(map);
 
+// Separate layer groups so Excel + GeoJSON never conflict
+const excelLayerGroup = L.layerGroup().addTo(map);
+const geojsonLayerGroup = L.layerGroup().addTo(map);
+
+// Basemap selector dropdown
 document.getElementById("baseMapSelect").addEventListener("change", e => {
   Object.values(baseMaps).forEach(l => map.removeLayer(l));
   baseMaps[e.target.value].addTo(map);
 });
 
 
-// ================= DATA =================
+// =============================================================
+// EXCEL DATA SYMBOL SYSTEM
+// Assigns consistent colors/shapes per Route + Day
+// =============================================================
 const colors = ["#e74c3c","#3498db","#2ecc71","#f39c12","#9b59b6","#1abc9c"];
 const shapes = ["circle","square","triangle","diamond"];
-const symbolMap = {};
-const routeDayGroups = {};
+
+const symbolMap = {};      // Stores symbol per route/day
+const routeDayGroups = {}; // Stores markers grouped by route/day
+
 let symbolIndex = 0;
 let globalBounds = L.latLngBounds();
 
@@ -48,6 +68,11 @@ function getSymbol(key) {
   return symbolMap[key];
 }
 
+
+// =============================================================
+// MARKER CREATION
+// Builds Leaflet markers with custom shapes
+// =============================================================
 function createMarker(lat, lon, symbol) {
   if (symbol.shape === "circle") {
     return L.circleMarker([lat, lon], {
@@ -59,10 +84,13 @@ function createMarker(lat, lon, symbol) {
   }
 
   let html = "";
+
   if (symbol.shape === "square")
     html = `<div style="width:10px;height:10px;background:${symbol.color}"></div>`;
+
   if (symbol.shape === "triangle")
     html = `<div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:10px solid ${symbol.color}"></div>`;
+
   if (symbol.shape === "diamond")
     html = `<div style="width:10px;height:10px;background:${symbol.color};transform:rotate(45deg)"></div>`;
 
@@ -70,42 +98,10 @@ function createMarker(lat, lon, symbol) {
 }
 
 
-// ================= FILTER UI =================
-function buildRouteCheckboxes(routes) {
-  const c = document.getElementById("routeCheckboxes");
-  c.innerHTML = "";
-  routes.forEach(r => {
-    const l = document.createElement("label");
-    l.innerHTML = `<input type="checkbox" value="${r}" checked> ${r}`;
-    l.querySelector("input").addEventListener("change", applyFilters);
-    c.appendChild(l);
-  });
-}
-
-function buildDayCheckboxes() {
-  const c = document.getElementById("dayCheckboxes");
-  c.innerHTML = "";
-  [1,2,3,4,5,6,7].forEach(d => {
-    const l = document.createElement("label");
-    l.innerHTML = `<input type="checkbox" value="${d}" checked> ${dayName(d)}`;
-    l.querySelector("input").addEventListener("change", applyFilters);
-    c.appendChild(l);
-  });
-}
-buildDayCheckboxes();
-
-function setCheckboxGroup(containerId, checked) {
-  document.querySelectorAll(`#${containerId} input`).forEach(b => (b.checked = checked));
-  applyFilters();
-}
-
-document.getElementById("routesAll").onclick  = () => setCheckboxGroup("routeCheckboxes", true);
-document.getElementById("routesNone").onclick = () => setCheckboxGroup("routeCheckboxes", false);
-document.getElementById("daysAll").onclick    = () => setCheckboxGroup("dayCheckboxes", true);
-document.getElementById("daysNone").onclick   = () => setCheckboxGroup("dayCheckboxes", false);
-
-
-// ================= FILTER =================
+// =============================================================
+// FILTERING LOGIC
+// Shows/hides markers based on selected Routes + Days
+// =============================================================
 function applyFilters() {
   const routes = [...document.querySelectorAll("#routeCheckboxes input:checked")].map(i => i.value);
   const days   = [...document.querySelectorAll("#dayCheckboxes input:checked")].map(i => i.value);
@@ -113,38 +109,51 @@ function applyFilters() {
   Object.entries(routeDayGroups).forEach(([key, group]) => {
     const [r, d] = key.split("|");
     const show = routes.includes(r) && days.includes(d);
-    group.layers.forEach(l => show ? l.addTo(map) : map.removeLayer(l));
+
+    group.layers.forEach(layer => {
+      show ? excelLayerGroup.addLayer(layer) : excelLayerGroup.removeLayer(layer);
+    });
   });
 
   updateStats();
 }
 
 
-// ================= STATS =================
+// =============================================================
+// STATISTICS PANEL
+// Displays visible stop counts per Route + Day
+// =============================================================
 function updateStats() {
   const list = document.getElementById("statsList");
   list.innerHTML = "";
 
   Object.entries(routeDayGroups).forEach(([key, group]) => {
-    const visible = group.layers.filter(l => map.hasLayer(l)).length;
+    const visible = group.layers.filter(l => excelLayerGroup.hasLayer(l)).length;
     if (!visible) return;
 
-    const [r,d] = key.split("|");
+    const [r, d] = key.split("|");
+
     const li = document.createElement("li");
     li.textContent = `Route ${r} – ${dayName(d)}: ${visible}`;
+
     list.appendChild(li);
   });
 }
 
 
-// ================= EXCEL PROCESS =================
+// =============================================================
+// EXCEL PROCESSING
+// Converts spreadsheet rows into map markers
+// =============================================================
 function processExcelBuffer(buffer) {
   const wb = XLSX.read(new Uint8Array(buffer), { type: "array" });
   const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
 
-  Object.values(routeDayGroups).forEach(g => g.layers.forEach(l => map.removeLayer(l)));
+  // Reset previous data
+  excelLayerGroup.clearLayers();
   Object.keys(routeDayGroups).forEach(k => delete routeDayGroups[k]);
   Object.keys(symbolMap).forEach(k => delete symbolMap[k]);
+
   symbolIndex = 0;
   globalBounds = L.latLngBounds();
 
@@ -155,6 +164,7 @@ function processExcelBuffer(buffer) {
     const lon = Number(row.LONGITUDE);
     const route = String(row.NEWROUTE);
     const day = String(row.NEWDAY);
+
     if (!lat || !lon || !route || !day) return;
 
     const key = `${route}|${day}`;
@@ -162,11 +172,10 @@ function processExcelBuffer(buffer) {
 
     if (!routeDayGroups[key]) routeDayGroups[key] = { layers: [] };
 
-    const m = createMarker(lat, lon, symbol)
-      .bindPopup(`Route ${route}<br>${dayName(day)}`)
-      .addTo(map);
+    const marker = createMarker(lat, lon, symbol)
+      .bindPopup(`Route ${route}<br>${dayName(day)}`);
 
-    routeDayGroups[key].layers.push(m);
+    routeDayGroups[key].layers.push(marker);
     routeSet.add(route);
     globalBounds.extend([lat, lon]);
   });
@@ -177,21 +186,53 @@ function processExcelBuffer(buffer) {
 }
 
 
-// ================= SUPABASE FILE LIST =================
-async function listFiles() {
-  const { data, error } = await sb.storage.from(BUCKET).list();
-  if (error) return console.error(error);
+// =============================================================
+// GEOJSON LOADING
+// Downloads GeoJSON from Supabase and renders on map
+// =============================================================
+async function loadGeoJSONFile(name) {
+  const { data } = sb.storage.from(GEOJSON_BUCKET).getPublicUrl(name);
 
+  const res = await fetch(data.publicUrl);
+  const geojson = await res.json();
+
+  const layer = L.geoJSON(geojson, {
+    style: { color: "#ffcc00", weight: 2 },
+
+    onEachFeature: (feature, layer) => {
+      if (!feature.properties) return;
+
+      const content = Object.entries(feature.properties)
+        .map(([k, v]) => `<strong>${k}:</strong> ${v}`)
+        .join("<br>");
+
+      layer.bindPopup(content);
+    }
+  });
+
+  geojsonLayerGroup.addLayer(layer);
+  map.fitBounds(layer.getBounds());
+}
+
+
+// =============================================================
+// FILE LISTING FROM SUPABASE
+// Shows Open/Delete buttons for Excel + GeoJSON
+// =============================================================
+async function listFiles() {
   const ul = document.getElementById("savedFiles");
   ul.innerHTML = "";
 
-  data.forEach(file => {
+  // ---------- Excel Files ----------
+  const { data: excelFiles } = await sb.storage.from(EXCEL_BUCKET).list();
+
+  excelFiles?.forEach(file => {
     const li = document.createElement("li");
 
     const openBtn = document.createElement("button");
-    openBtn.textContent = "Open";
+    openBtn.textContent = "Open Excel";
     openBtn.onclick = async () => {
-      const { data } = sb.storage.from(BUCKET).getPublicUrl(file.name);
+      const { data } = sb.storage.from(EXCEL_BUCKET).getPublicUrl(file.name);
       const r = await fetch(data.publicUrl);
       processExcelBuffer(await r.arrayBuffer());
     };
@@ -199,7 +240,29 @@ async function listFiles() {
     const delBtn = document.createElement("button");
     delBtn.textContent = "Delete";
     delBtn.onclick = async () => {
-      await sb.storage.from(BUCKET).remove([file.name]);
+      await sb.storage.from(EXCEL_BUCKET).remove([file.name]);
+      listFiles();
+    };
+
+    li.append(openBtn, delBtn, document.createTextNode(" " + file.name));
+    ul.appendChild(li);
+  });
+
+
+  // ---------- GeoJSON Files ----------
+  const { data: geoFiles } = await sb.storage.from(GEOJSON_BUCKET).list();
+
+  geoFiles?.forEach(file => {
+    const li = document.createElement("li");
+
+    const openBtn = document.createElement("button");
+    openBtn.textContent = "Open GeoJSON";
+    openBtn.onclick = () => loadGeoJSONFile(file.name);
+
+    const delBtn = document.createElement("button");
+    delBtn.textContent = "Delete";
+    delBtn.onclick = async () => {
+      await sb.storage.from(GEOJSON_BUCKET).remove([file.name]);
       listFiles();
     };
 
@@ -209,25 +272,41 @@ async function listFiles() {
 }
 
 
-// ================= UPLOAD =================
+// =============================================================
+// FILE UPLOAD HANDLER
+// Detects Excel vs GeoJSON and uploads to correct bucket
+// =============================================================
 async function uploadFile(file) {
   if (!file) return;
 
-  await sb.storage.from(BUCKET).upload(file.name, file, { upsert: true });
+  const isGeoJSON = file.name.toLowerCase().endsWith(".geojson") || file.name.toLowerCase().endsWith(".json");
 
-  processExcelBuffer(await file.arrayBuffer());
+  if (isGeoJSON) {
+    await sb.storage.from(GEOJSON_BUCKET).upload(file.name, file, { upsert: true });
+    await loadGeoJSONFile(file.name);
+  } else {
+    await sb.storage.from(EXCEL_BUCKET).upload(file.name, file, { upsert: true });
+    processExcelBuffer(await file.arrayBuffer());
+  }
+
   listFiles();
 }
 
 
-// ================= INPUT =================
+// =============================================================
+// DRAG & DROP + FILE INPUT
+// Connects UI upload box to upload handler
+// =============================================================
 const dropZone = document.getElementById("dropZone");
+
 const fileInput = document.createElement("input");
 fileInput.type = "file";
-fileInput.accept = ".xlsx,.xls";
+fileInput.accept = ".xlsx,.xls,.geojson,.json";
 
 dropZone.onclick = () => fileInput.click();
+
 dropZone.ondragover = e => e.preventDefault();
+
 dropZone.ondrop = e => {
   e.preventDefault();
   uploadFile(e.dataTransfer.files[0]);
@@ -236,28 +315,8 @@ dropZone.ondrop = e => {
 fileInput.onchange = e => uploadFile(e.target.files[0]);
 
 
-// ================= SIDEBAR / MOBILE =================
-const mobileMenuBtn = document.getElementById("mobileMenuBtn");
-const toggleSidebarBtn = document.getElementById("toggleSidebarBtn");
-const sidebar = document.querySelector(".sidebar");
-
-mobileMenuBtn.onclick = () => {
-  const isOpen = sidebar.classList.toggle("open");
-  mobileMenuBtn.textContent = isOpen ? "✕" : "☰";
-  setTimeout(() => map.invalidateSize(), 200);
-};
-
-toggleSidebarBtn.onclick = () => {
-  if (window.innerWidth <= 900) {
-    sidebar.classList.toggle("open");
-  } else {
-    document.querySelector(".app-container").classList.toggle("collapsed");
-    toggleSidebarBtn.textContent =
-      document.querySelector(".app-container").classList.contains("collapsed") ? "▶" : "◀";
-  }
-  setTimeout(() => map.invalidateSize(), 200);
-};
-
-
-// ================= INIT =================
+// =============================================================
+// INITIAL LOAD
+// Pulls existing files from Supabase on page open
+// =============================================================
 listFiles();
