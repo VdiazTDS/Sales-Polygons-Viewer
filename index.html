@@ -1,96 +1,82 @@
 <!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>TEST TDS-PAK</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>GIS Layer Manager</title>
 
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
 
-  <!-- Leaflet CSS (REQUIRED FOR MAP TO SHOW) -->
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-  <!-- Your CSS -->
+  <!-- App CSS -->
   <link rel="stylesheet" href="style.css" />
 
   <link rel="icon" href="favicon.ico" />
 </head>
 
 <body>
+  <!-- ================= HEADER ================= -->
+  <header>
+    <h1>GIS Layer Manager</h1>
+    <p>Upload, manage, and visualize GeoJSON layers</p>
+    <button id="mobileMenuBtn">☰ Menu</button>
+  </header>
 
+  <!-- ================= MAIN LAYOUT ================= -->
+  <div class="app-container">
 
-<header>
-  <h1>TEST TDS-PAK</h1>
-  <p>Drag & drop an Excel file to visualize routes by day</p>
-  <button id="mobileMenuBtn">☰ Menu</button>
-  
+    <!-- Desktop sidebar collapse toggle -->
+    <button id="toggleSidebarBtn" class="sidebar-toggle">❮</button>
 
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
 
-</header>
+      <!-- Upload -->
+      <div id="dropZone">📂 Drag & drop GeoJSON or click to upload</div>
 
-<div class="app-container">
-  
-<button id="toggleSidebarBtn" class="sidebar-toggle">❮</button>
-  <aside class="sidebar">
-
-    <div id="dropZone">📄 Drag & drop Excel file or click to upload</div>
-
-    <!-- NEW: Saved files -->
-    <div class="filter-group">
-      <strong>Saved Excel Files</strong>
-      <ul id="savedFiles"></ul>
-    </div>
-
-    <div class="filter-group">
-      <div class="filter-header">
-        <strong>Routes</strong>
-        <div>
-          <button class="mini-btn" id="routesAll">All</button>
-          <button class="mini-btn" id="routesNone">None</button>
-        </div>
+      <!-- Saved GeoJSON Layers -->
+      <div class="filter-group">
+        <strong>GeoJSON Layers</strong>
+        <ul id="savedFiles"></ul>
       </div>
-      <div id="routeCheckboxes"></div>
-    </div>
 
-    <div class="filter-group">
-      <div class="filter-header">
-        <strong>Days</strong>
-        <div>
-          <button class="mini-btn" id="daysAll">All</button>
-          <button class="mini-btn" id="daysNone">None</button>
-        </div>
+      <!-- Layer Instructions -->
+      <div class="filter-group">
+        <strong>How to Use</strong>
+        <ul id="statsList">
+          <li>Upload .geojson or .json files</li>
+          <li>Click <b>Open</b> to display on the map</li>
+          <li>Click <b>Delete</b> to remove from storage</li>
+          <li>Use the basemap selector below to change map style</li>
+        </ul>
       </div>
-      <div id="dayCheckboxes"></div>
-    </div>
 
-    <div class="filter-group">
-      <strong>Statistics</strong>
-      <ul id="statsList"></ul>
-    </div>
+      <!-- Reset Map -->
+      <button id="resetMapBtn">Reset Map View</button>
 
-    <button id="resetMapBtn">Reset Map</button>
+      <!-- Basemap Selector -->
+      <select id="baseMapSelect">
+        <option value="streets">Streets</option>
+        <option value="satellite">Satellite</option>
+      </select>
 
-    <select id="baseMapSelect">
-      <option value="streets">Streets</option>
-      <option value="satellite">Satellite</option>
-    </select>
-  </aside>
+    </aside>
 
-  <main class="map-container">
-    <div id="map"></div>
-  </main>
+    <!-- ================= MAP ================= -->
+    <main class="map-container">
+      <div id="map"></div>
+    </main>
 
-</div>
+  </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- ================= SCRIPTS ================= -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<script src="app.js"></script>
-
+  <!-- App JS -->
+  <script src="app.js"></script>
 </body>
 </html>
-
-
-
-
-
