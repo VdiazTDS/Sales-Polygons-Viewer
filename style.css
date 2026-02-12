@@ -366,6 +366,49 @@ header p {
 
 
 
+/* =============================================================
+   COLLAPSIBLE HELP PANEL
+   Clean GIS-style expandable instructions section
+   ============================================================= */
+
+.help-toggle {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 10px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  margin-top: 10px;
+  user-select: none;
+  transition: background 0.2s ease;
+}
+
+.help-toggle:hover {
+  background: #e5e7eb;
+}
+
+/* Hidden by default */
+.help-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  padding-left: 8px;
+}
+
+/* When opened via JS */
+.help-content.open {
+  max-height: 500px; /* enough room for text */
+  margin-top: 8px;
+}
+
+/* Help list styling */
+.help-content ul {
+  padding-left: 18px;
+  line-height: 1.5;
+}
+
+.help-content li {
+  margin-bottom: 6px;
+}
 
 
 
